@@ -1,0 +1,354 @@
+---
+title: "Lab_5"
+author: "Anish & Alex"
+date: "10/2/2022"
+output: 
+  html_document:
+    toc_float:
+      toc_collapsed: true
+    code_folding: hide
+    theme: united
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+
+# A. Importing and exploring the data
+
+## 1. 
+
+Reading in the .rds file.
+```{r echo=TRUE}
+drug_data <- readRDS("NSDUH_02-18_filtered.rds")
+```
+
+## 2.
+
+
+```{r echo=TRUE}
+summary(drug_data)
+```
+
+
+## 3.
+
+Selecting the specified columns. 
+```{r echo=TRUE}
+coc_her <- select(drug_data, year, irsex, CATAG7, income, EDUCCAT2, cocyr, ircocfy, cocever, heryr, irherfy, herever)
+```
+
+
+# B. Inspecting and learning about the data
+
+## 1. 
+
+Variables ending in 'fy' show the frequency of drug usage in the past year (1-365 or NA). Variables ending in 'yr' show if the individual used drugs at all in the past year. 
+
+
+## 2.
+
+In variables ending in 'fy', observations above 365 should be changed to NA.
+
+
+## 3.
+
+Replacing placeholder values with NA.
+```{r echo=TRUE}
+coc_her <- coc_her %>%
+  mutate(ircocfy = replace(ircocfy, ircocfy > 365, NA),
+         irherfy = replace(irherfy, irherfy > 365, NA))
+```
+
+# C. Labeling factor levels
+
+## 1 & 2
+
+Changing name of column 'irsex' to 'sex'.
+```{r echo=TRUE}
+coc_her <- rename(coc_her, sex = irsex)
+```
+
+## 3. 
+
+Relabeling the sex column using names 'Male' & 'Female'. 
+```{r echo=TRUE}
+coc_her$sex <- factor(coc_her$sex,
+     levels = c(1,2),
+     labels = c("Male", "Female"))
+```
+
+
+## 4. 
+
+
+```{r echo=TRUE}
+str(coc_her)
+```
+
+
+## 5. 
+
+Relabeling the rest of the variables.
+```{r echo=TRUE}
+coc_her$CATAG7 <- factor(coc_her$CATAG7,
+     levels = c(1,2,3,4,5,6,7),
+     labels = c("12-13", "14-15", "16-17", "18-20", "21-25", "26-34", "35+"))
+
+coc_her$EDUCCAT2 <- factor(coc_her$EDUCCAT2,
+     levels = c(1,2,3,4,5, -9),
+     labels = c("<High School", "High School graduate", "Some college", "College graduate", "12-17", NA))
+
+
+coc_her$cocever <- factor(coc_her$cocever,
+      levels = c(1,2,85,94,97),
+      labels = c("Yes", "No", NA, NA, NA))
+
+
+coc_her$herever <- factor(coc_her$herever,
+      levels = c(1,2,85,94,97),
+      labels = c("Yes", "No", NA, NA, NA))
+
+coc_her$income <- factor(coc_her$income,
+      levels = c(1,2,3,4),
+      labels = c("Less than 20000", "20000-49999", "50000-74999", "75000 or  more"))
+
+colnames(coc_her) <- c('year','sex','age','income','education','cocaine_past_year_use','cocaine_frequency','cocaine_ever', 'heroin_past_year_use', 'heroin_frequency', 'heroin_ever')
+```
+
+## 6. 
+
+Changing year to a numeric variable.
+```{r echo=TRUE, warning=FALSE}
+coc_her$year <- as.numeric(coc_her$year)
+```
+
+# D. Exploring the data visually and statistically
+
+## Histograms
+
+### 1. [4 pts]
+
+Below are two histograms for the number of days per year cocaine & heroin were used.
+
+```{r echo=TRUE, warning=FALSE}
+ggplot(coc_her, aes(x = heroin_frequency)) + 
+geom_histogram(color = 'black', fill = 'grey', binwidth = 3 )+
+labs(  x = 'Heroin usage frequency', y = 'Count' , title = 'Number of days per year heroin was used')
+
+ggplot(coc_her, aes(x = cocaine_frequency)) + geom_histogram(color = 'black', fill = 'grey', binwidth = 3) + 
+  labs(  x = 'Cocaine usage frequency', y = 'Count' ,title = 'Number of days per year cocaine was used') 
+
+```
+
+### 2. [2 pts]
+
+Cocaine seems to have a lot more users than heroin. Over 1000 people reported to have used cocaine more than 50 times in the past year, whereas only 100+ people reported to have used heroin. The cost of the drug and the accesibilty could be a few factors behind this statistic. 
+
+
+## Frequency polygons
+
+### 3. [4 pts]
+
+
+```{r echo=TRUE, warning=FALSE}
+ ggplot(coc_her, aes(x=cocaine_frequency)) + 
+  geom_freqpoly(aes( col =sex), binwidth=3)+
+   labs(  x = 'Cocaine usage frequency', y = 'Count' , title = 'Number of days per year cocaine was used: Male vs Female')
+
+ ggplot(coc_her, aes(x=heroin_frequency)) + 
+  geom_freqpoly(aes( col =sex), binwidth=3) +
+   labs(  x = 'Heroin usage frequency', y = 'Count' , title = 'Number of days per year heroin was used: Male vs Female')
+```
+
+
+### 4. [2 pts]
+
+There seem to be a higher number of male users than female users in both cocaine and heroin. There also seem to be slightly more male users than female users at almost every frequency.
+
+
+### 5. [2 pts]
+
+Higher bindwidths make it easier to interpret the graph. However, lower bindwidths show a lot more data. The spikes are smoothened/averaged out in higher binwidths whereas the spikes are thinner in lower bandwidths.
+
+
+### 6. [4 pts]
+
+```{r echo=TRUE, warning=FALSE}
+t.test(cocaine_frequency ~ sex, coc_her)
+t.test(heroin_frequency ~ sex, coc_her)
+
+```
+In  the cocaine t-test, the p-value was calculated to be 0.8196. Since this is greater than .05, the null hypothesis cannot be rejected. Thus, sex does not affect the frequency of cocaine usage.
+In  the heroin t-test, the p-value was calculated to be 0.9232. Since this is greater than .05, the null hypothesis cannot be rejected. Thus, sex does not affect the frequency of heroin usage.
+However, these p-values do not prove that the groups are completely the same. The differences can be observed in the graphs above.
+
+
+## Boxplots with Confidence Intervals
+
+
+### 7. 
+
+```{r echo=TRUE, warning=FALSE}
+coc_her<- mutate(coc_her, drug_frequency = cocaine_frequency + heroin_frequency)
+
+ggplot(coc_her, aes(x = age , y = drug_frequency)) + geom_boxplot() + labs(x = "Age", y = "Drug usage frequency", title = "Drug usage frequency across ages")
+```
+
+
+### 8. [4 pts]
+
+```{r echo=TRUE, warning=FALSE}
+ggplot(coc_her, aes(x = age , y = drug_frequency)) + geom_boxplot(notch = TRUE, outlier.color = "gray") + labs(x = "Age", y = "Drug usage frequency", title = "Drug usage frequency across ages (with notches)")
+```
+
+
+### 9. [3 pts]
+
+```{r echo=TRUE, warning=FALSE}
+first_age <- filter(coc_her, age == "16-17")
+second_age <- filter(coc_her, age == "18-20")
+t.test(first_age$drug_frequency, second_age$drug_frequency)
+```
+
+The results make sense as the p value is .6171, which is greater than .05 indicating that there is no significant difference between both the age groups. In addition, 0 falls in the 95% confidence interval range as well, proving that there isn't a significant difference.
+
+
+### 10. [3 pts]
+
+
+```{r echo=TRUE, warning=FALSE}
+first_age <- filter(coc_her, age == "26-34")
+second_age <- filter(coc_her, age == "35+")
+t.test(first_age$drug_frequency, second_age$drug_frequency)
+```
+The results support the significant different in drug use frequency between both the age groups as the p value is .006211 which is lesser than .05, thus rejecting the null hypothesis. Furthermore, 0 does not fall in the 95% confidence interval range. 
+
+
+## Barplots with Confidence Intervals
+
+### 11 & 12 [4 points]
+
+
+```{r echo=TRUE, warning=FALSE}
+ggplot(coc_her, aes(x=income, y=cocaine_frequency, fill=income)) + 
+  stat_summary(fun="mean",geom="bar")+
+  stat_summary(fun.data="mean_cl_normal",geom="errorbar",
+               fun.args=list(conf.int=.95), width=0.35) + 
+  theme(legend.position = "none") + labs(x = "Income", y = "Cocaine usage frequency", title = "Barplot with Confidence Intervals showing income & cocaine usage")
+
+ggplot(coc_her, aes(x=income, y=heroin_frequency, fill=income)) + 
+  stat_summary(fun="mean",geom="bar")+
+  stat_summary(fun.data="mean_cl_normal",geom="errorbar",
+               fun.args=list(conf.int=.95), width=0.35) + 
+  theme(legend.position = "none") + labs(x = "Income", y = "Heroin usage frequency", title = "Barplot with Confidence Intervals showing income & Heroin usage")
+```
+
+
+### 13. [6 pts]
+
+
+The number of days heroin and cocaine were used in lowest and highest income groups in a t-test: 
+
+```{r echo=TRUE, warning=FALSE}
+lowest_income <- filter(coc_her, income == "Less than 20000")
+highest_income <- filter(coc_her, income == "75000 or  more")
+t.test(lowest_income$cocaine_frequency, highest_income$cocaine_frequency)
+t.test(lowest_income$heroin_frequency, highest_income$heroin_frequency)
+
+```
+The use of cocaine seems to be more prevalent in the income groups making less than 20,000 than it is in groups making more than 75000. This hypothesis is supported by the p value found, which is lesser than 2.2e-16. Heroin usage, however, does not seem to be impacted by income brackets. A p value of .3117 shows that there isn't a significant enough different between both the sample means. 
+
+## Lineplots to show trends through time
+
+
+### 14 & 15 [4 pts]
+
+A value of '1' in the 'coc/her_past_year_use' variable means that the individual has used the corresponding drug in the past year, and a '0' means that the individual hasn't. Thus, '1' is effectively a 'yes' and '0' is a no. The percentage of 'yes's can be found out by subtracting the number of 'yes's from the total number of responses, and dividing the difference by the number of responses. The numerator is the sum of all the 1's and 0's in the 'coc/her_past_year_use' var, and since the number of observations is the same, the mean will give the percentage of users. 
+
+
+### 16.
+
+
+```{r echo=TRUE, warning=FALSE}
+coc_yearly_percent <- coc_her %>% group_by(year) %>% summarise(user_percentage = mean(cocaine_past_year_use))
+
+her_yearly_percent <- coc_her %>% group_by(year) %>% summarise(user_percentage = mean(heroin_past_year_use))
+```
+
+
+### 17. [4 pts]
+
+```{r echo=TRUE, warning=FALSE}
+ggplot(coc_yearly_percent, aes(x= year, y= user_percentage)) +
+  geom_line()+
+  geom_point() + labs(y = "Percentage of cocaine users", title = "Cocaine usage through time")
+
+ggplot(her_yearly_percent, aes(x= year, y= user_percentage)) +
+  geom_line()+
+  geom_point() + labs(y = "Percentage of heroin users", title = "Heroin usage through time")
+```
+
+
+
+### 18. [2 pts]
+
+The number of cocaine users has been on a general decline whereas the number of heroin users has been on an incline.
+
+
+### 19. [4 pts]
+
+```{r echo=TRUE, warning=FALSE}
+coc_timetest <- filter(coc_yearly_percent, year == 2002 | year == 2018)
+t.test(coc_timetest$year , coc_timetest$user_percentage)
+
+her_timetest <- filter(her_yearly_percent, year == 2002 | year == 2018)
+t.test(her_timetest$year , her_timetest$user_percentage)
+```
+The p values in both the tests are lesser than .05, proving that there has been a statistically significant difference in the use of cocaine and heroin usage over time. Also the fact that 0 does not fall in the 95% confidence interval of both the t-tests affirms the above statement.
+
+### 20. 
+
+The income variable is being used here to predict a demographic that is at higher risk of abuse.
+```{r echo=TRUE, warning=FALSE}
+cocaine_summary <- coc_her %>% group_by(income, year) %>% summarise(user_percentage = mean(cocaine_past_year_use))
+```
+
+
+### 21. [4 pts]
+
+```{r echo=TRUE, warning=FALSE}
+ggplot(cocaine_summary, aes(x=year, y=user_percentage, group = income)) +
+  geom_line(aes(linetype = income))+
+  geom_point() + labs(x = "Year", y = "Percentage of users", title = "Percentage of users across time in different income groups")
+```
+
+
+# E. Summary and Discussion
+
+## 1. Summary [4 pts]
+
+In our exploration, we found out that the cocaine has more users than heroin. We also noted a steady increase in drug usage frequency between the ages of 12 & 35. A decrease in cocaine usage frequency was found with increase in income, but the same wasn't observed with heroin. Cocaine usage was also found to be on a general decline since 2002, however, heroin usage was found to be increasing.
+
+## 2. Drug of Greatest Concern [4 pts]
+
+According to us, cocaine seems to be the drug of greatest concern because of two reasons:
+a) It has more number of users than heroin.
+as it is most prevalent in a vulnerable group (income <20000). This is supported by the p-value of 2.2e-16 found in the t-test in question 13. 
+Though cocaine use has been declining since 2002, there has been a steady increase since 2014. Hence, cocaine is the drug of greatest concern to us.
+
+
+## 3. Ethical Reflection [4 pts]
+
+This analysis can be used by the relevant authorities to fight the drug epidemic. The vulnerability of lower income groups can be understood and more rehabilitation services could be provided to them. So, a study like this could definitely be useful in reducing drug-related fatalities in a population. The paper does a satisfactory job of including members of different groups. Even though anonymity of participants was maintained, a paper like this could lead to the stigmatization of region. The results have to be communicated and implemented with everyone's needs in mind, as lower income groups may not have access to the same resources as higher income groups.
+
+
+## 4. In the News [2 pts]
+
+The findings of our analysis go hand in hand with the article, as both mark the recent increase in drug usage within the last few years. In the pandemic, the decreased access to mental-health care has been met with increased drug usage, and the same has been observed in this analysis. Thus, there's scope for research examining how mental health affects drug usage and how services could be developed to help prevent that.
+
+

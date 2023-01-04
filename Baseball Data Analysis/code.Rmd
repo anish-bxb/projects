@@ -1,0 +1,120 @@
+---
+title: "lab_week9"
+author: "Anish"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc : true 
+    theme : united 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+
+```{r cars}
+teams = read.csv("teams.csv")
+tail(teams)
+str(teams)
+
+```
+
+## Q1
+
+```{r pressure, echo=FALSE}
+myteams <-  select(teams, G, W, L, R, RA, teamID, yearID, lgID)
+myteams <- filter(myteams, yearID > 2000)
+```
+
+```{r}
+myteams$RD <- with(myteams, R - RA)
+myteams$Wpct <- with(myteams, W / (W + L))
+```
+
+```{r}
+ boxplot(Wpct ~ lgID, data=myteams)
+```
+## Q1
+```{r}
+ggplot(myteams, aes(y = Wpct)) + geom_boxplot() + facet_wrap(~lgID) + labs(y = "Winning Percentage", x = "American League vs National League")
+
+```
+```{r}
+WP.AL <- subset(myteams,lgID =="AL")$Wpct
+WP.NL <- subset(myteams,lgID =="NL")$Wpct
+qqnorm(WP.AL)
+qqnorm(WP.NL)
+t.test(WP.AL,WP.NL)
+
+```
+## Q2
+
+```{r}
+twoteams <- myteams %>% filter(teamID == "CLE" | teamID == "BOS")
+twoteams <- select(twoteams, teamID, Wpct)
+ttest <- t.test(Wpct~teamID,twoteams) 
+ttest
+```
+The p value is lesser than .05, so there is a significant difference between the win percentages of the Boston Red Sox and Cleveland Indians.
+
+
+```{r}
+plot(myteams$RD, myteams$Wpct, 
+     xlab = "Run Differential", 
+     ylab ="Winning Percentage")
+```
+```{r}
+ggplot(myteams)+ geom_point(aes(x = RD, y=Wpct)) + geom_smooth(aes(x = RD, y = Wpct), method = 'lm')
+ggplot(myteams, aes(x = RD, y=Wpct))+ geom_point()+ geom_smooth(method = 'lm')
+```
+
+## Q3
+```{r}
+ggplot(myteams %>% filter(lgID == "AL"))+ geom_point(aes(x = RD, y=Wpct)) + geom_smooth(aes(x = RD, y = Wpct), method = 'lm') + labs (x = "Run Differtential", y = "Win percentage")
+```
+```{r}
+linfit <- lm(Wpct ~ RD, data = myteams)
+ linfit$coefficients
+ par(mfrow=c(2,2))
+ plot(linfit)
+```
+```{r}
+plot(myteams$RD, myteams$Wpct, 
+     xlab = "Run Differential", 
+     ylab = "Winning Percentage",)
+abline(linfit$coefficients[1],linfit$coefficients[2])
+
+```
+##Q4
+```{r}
+ALdata <- filter(myteams, lgID == "AL")
+linfit <- lm(Wpct ~ RD, data = ALdata)
+linfit$coefficients
+par(mfrow=c(2,2))
+plot(linfit)
+plot(myteams$RD, myteams$Wpct, 
+    xlab = "Run Differential", 
+    ylab = "Winning Percentage",)
+abline(linfit$coefficients[1],linfit$coefficients[2])
+```
+
+
+
+## Q5
+What is the difference in the average winning percentage of the New York Yankees and Texas Rangers?
+```{r}
+twoteams_2 <- myteams %>% filter(teamID == "TEX" | teamID == "NYA")
+twoteams_2 <- select(twoteams_2, teamID, Wpct)
+ttest_2 <- t.test(Wpct~teamID,twoteams_2) 
+ttest_2
+
+```
+The p-value is 5.217 * 10^-5, which is lesser than .05. This means that there is a statistically significant difference in the the average winning percentage of the Yankees and Rangers. 0 also isn't part of the 95% confidence interval, thus making the difference more evident. 

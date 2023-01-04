@@ -1,0 +1,257 @@
+---
+title: "lab8"
+author: "Anish"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc float:
+      toc collapsed: true
+    code folding: hide
+    theme: united
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE)
+```
+
+## 1) Initial Setup - Data and packages
+
+```{r}
+
+library (dplyr, ggplot2)
+library (knitr)
+library(ggthemes)
+library(readr)
+library(Hmisc)
+```
+
+
+```{r cars}
+housedata <- read.csv("House_all_members.csv")
+```
+
+## 2) Exploring and setting up the House data
+
+### 1)
+```{r pressure, echo=FALSE}
+glimpse(housedata)
+
+```
+
+### 2)
+```{r}
+table(housedata$party_code)
+
+```
+The units of data are integers and doubles for the most part, with a few character type columns. The number of observations makes sense as the data contains members from the 1700's.
+
+### 3) 
+Creating a second data frame that only includes Presidents, and filtering main datafile to only include house members. 
+
+```{r}
+presidents <- housedata %>% filter(chamber == "President")
+housedata = housedata %>% filter(chamber == "House")
+```
+
+### 4)
+
+```{r}
+summary(housedata$nominate_dim1)
+ggplot(housedata, aes(x=nominate_dim1)) + 
+  geom_bar( color = "black", fill = "beige") + theme(plot.title = element_text(hjust = 0.5)) + labs(x="Political positions", y="Count", 
+title="Dstribution of \n all the ideological positions")
+
+```
+
+The results are in line with the hypothesis that both sides have polarized equally. The majority of the house members are either moderately conservative or moderately liberal, with only a small percentage being truly moderate and extremely liberal/conservative. This suggests that the average house member is moderately polarized. 
+
+### 5) 
+I will be using a one sample t test to see if the average house member is slightly polarized. I will be comparing the political ideologies of the house members, ranging from -1 to 1, to 0. If the mean of the ideologies differs significantly from 0, we can conclude that the average house member is slightly polarized. 
+
+```{r}
+t.test(housedata$nominate_dim1, mu = 0)
+```
+The t-test resulted in a p-value of .01609, suggesting that the difference between the mean of the political ideologies and 0 is statistically significant.
+
+## 3) Analysis over time and across subsets of the data
+
+### 1) 
+I think that polarization has increased over time. As we got closer to the present day and age, the speed at which information spreads and the general interconnectedness between people has increased exponentially. Thus, all the available information might coerce people into choosing a side. 
+
+### 2) 
+Making the year variable
+```{r}
+housedata <- mutate(housedata, year = 1787 + (congress * 2))
+```
+
+### 3) 
+
+```{r}
+yearly_polarization <- housedata %>%  group_by(year)  %>% summarise(yearly_polarization = mean(nominate_dim1, na.rm = TRUE)) 
+ggplot(yearly_polarization, aes(x = year, y = yearly_polarization)) + geom_point() 
+```
+Polarization has decreased sharply from the 1800's to the 1850's. From then on, it has been staying fairly constant, moving between -.15 and .15. Overall, there seems to be no linear trend in polarization. 
+
+### 4) 
+```{r}
+yearly_polarization <- housedata %>%  group_by(year, party_code)  %>% summarise(yearly_polarization = mean(nominate_dim1, na.rm = TRUE)) 
+ggplot(yearly_polarization, aes(x = year, y = yearly_polarization)) + geom_jitter(aes(color=factor(party_code)), alpha=6/10)
+```
+1) Alpha seems to translucency of the colored dots. A lower alpha value makes the dots more transparent and a higher alpha value makes the colors more solid. Getting rid of the alpha value will result in the usage of a 10/10 alpha value as a default.
+2) The two parties are the ones with dots in green and yellow: 200 & 100. The green party is consistently more liberal. It also looks like the green party has polarized more.
+
+
+### 5) 
+```{r}
+house1876 <- housedata %>% filter(year > 1875)
+table(house1876$party_code)
+house1876 <- mutate(house1876,twoparty=ifelse(party_code!=100 & party_code!=200, NA_integer_, ifelse(party_code==200, 1, 0)))
+
+house1876<-mutate(house1876,  rep_or_dem=ifelse(twoparty==0, "rep",ifelse(twoparty == 1, "dem", NA_integer_)))
+table(house1876$rep_or_dem)
+```
+1) If the party code of an observation isn't 100 or 200, NA is inserted. If it is 100, 0 is inserted and if it is 200, 1 is inserted. NA_integer_ places a NA into a column of integers.  
+2) The values produced by table (rep_or_dem) do seem reasonable as they match the values outputted by table(house1876$party_code).
+
+
+### 6)
+```{r}
+yearly_polarization <- house1876 %>%  group_by(year, rep_or_dem)  %>% summarise(yearly_polarization = mean(nominate_dim1, na.rm = TRUE)) 
+ggplot(yearly_polarization, aes(x = year, y = yearly_polarization, color = rep_or_dem)) + geom_point(na.rm = TRUE) + scale_color_manual(values=c( 'red', 'blue'))  + labs(x = "Year", y = "Yearly Polarization", title = "Polarization across time" ) + scale_x_continuous(breaks=seq(1877, 2017, 25)) 
+ 
+```
+Polarization seems to be the exception as both the political parties return back to the mean. This means that they polarize in cycles, thus the polarization across time resembles a trignometric graph for both the parties. In the recent pas however, the Democratic party seems to have polarized much more than the Republican party.
+
+
+## 4) Testing claims for polarization in the U.S. House since 1876
+
+### 1)
+
+```{r}
+house1876 <- house1876 %>% 
+group_by(congress, rep_or_dem) %>% 
+mutate(party_mean=mean(nominate_dim1, na.rm=TRUE))
+```
+The above code generates a new variable named party_mean which is the average of nominate_dim1 for every congress and rep_or_dem.
+```{r}
+house1876 <- house1876 %>% 
+group_by(congress) %>% 
+mutate(congress_mean=mean(nominate_dim1, na.rm=TRUE))
+
+```
+```{r}
+house1876 %>% 
+filter(!is.na(rep_or_dem)) %>% 
+ggplot(aes(x=year, y=party_mean)) + 
+geom_line(aes(color=rep_or_dem)) + 
+geom_line(aes(x=year, y=congress_mean)) + scale_color_manual(values=c("blue", "red")) + theme_tufte() + 
+scale_x_continuous(breaks=seq(1877, 2013, 10)) + labs(x="Year", y="Mean dimension 1 nominate score", 
+title="Mean-DW1 scores over time and by party", color="Party", caption="Note: black line is mean DW1 for all members in a Congress")
+
+```
+The mean dimension 1 nominate score is the best measure for polarization as it shows the average polarization for all the parties in a congress. The farther the mean DW1 score is from 0, the more polarized the particular congress is. Thus, the mean DW1 is the best measure for polarization.
+
+### 2) 
+```{r}
+
+house1876_byYear <- house1876 %>% 
+group_by(year) %>%
+ summarise(congress_mean=mean(nominate_dim1, na.rm=TRUE))
+
+house1876_dems <- house1876 %>%
+filter(rep_or_dem=="dem") %>%
+group_by(year) %>%
+ summarise(dem_mean=mean(nominate_dim1, na.rm=TRUE))
+
+house1876_reps <- house1876 %>%
+filter(rep_or_dem=="rep") %>%
+group_by(year) %>%
+ summarise(reps_mean=mean(nominate_dim1, na.rm=TRUE))
+
+house1876cong <- left_join(house1876_byYear, house1876_dems, by=c("year")) 
+house1876cong <- left_join(house1876cong, house1876_reps, by=c("year"))
+
+
+house1876cong %>% 
+ggplot(aes(x=year, y=congress_mean)) + 
+geom_line(aes(color = "All members")) + 
+geom_line(aes(x=year, y= dem_mean, color = "Democrats")) +
+geom_line(aes(x=year, y= reps_mean, color = "Republicans")) +
+scale_color_manual(values=c("black", "blue", "red")) + theme_tufte() + 
+scale_x_continuous(breaks=seq(1877, 2013, 10)) + labs(x="Year", y="Mean dimension 1 nominate score", 
+title="Mean-DW1 scores over time and by party", color="Party", caption="Note: black line is mean DW1 for all members in a Congress")
+```
+Both the figures look identical. I expected both the figures to look the same and they turned out to be the same as the values themselves weren't changed but just organized in a different way. The rep_or_dem column was broken up into two columns but the number of republicans and democrats remained the same so no change was observed.
+
+### 3) 
+
+```{r}
+house1876cong <- house1876cong %>% mutate(polarization = abs(dem_mean - reps_mean))
+```
+
+The highs in the polarization variable should correspond to highest difference or gap between democratic and republican thinking. Lower values correspond to relatively smaller gaps between democrats and republicans.
+
+```{r}
+t.test(abs(house1876cong$dem_mean), abs(house1876cong$reps_mean))
+```
+The above t-test shows that there is a statistically significant difference in the average absolute polarization scores of parties. The p-value is lesser than .05 and the confidence interval does not include 0, thus there is a significant difference.
+
+
+### 4)
+```{r}
+house1876cong %>% ggplot(aes(x=year, y=polarization)) + geom_line() + labs(x = 'Year' , y = 'Polarization', title = "Polarization over time") 
+```
+Time and polarization are not linearly correlated, however, polarization seems to occur in cycles. Polarization seemed to be at its highest during the late 1800's and early 1900's. Then, it dipped sharply during the 50's & 60's but it shot back up, reaching its highest in the recent past. 
+
+### 5)
+
+```{r}
+cor.test(house1876cong$year, house1876cong$polarization)
+
+model1 <- lm(house1876cong$polarization ~ house1876cong$year)
+summary(model1)
+
+
+```
+According to the correlation test, the correlation coefficient is -.0208 which is very close to zero, meaning that there is little to no linear correlation between time and polarization. The p-value outputted is 0.8608, which is a lot greater than .05, showing that there isn't a statistically significant linear relationship between year and polarization.
+
+The linear regression model gave a coefficient estimate of -5.543e-05 for the x variable, which is year. This means that a change in the x-variable results in a small and insignificant change in the y variable. The p-value produced by the regression model is the same as above, showing that there isn't a significant linear relationship between the 2 variables.
+
+### 6)
+
+```{r}
+positive_cor <- house1876cong %>% filter(year > 1960)
+cor.test(positive_cor$year, positive_cor$polarization)
+
+model1 <- lm(positive_cor$polarization ~ positive_cor$year)
+summary(model1)
+```
+
+From the graph in question 4, it is apparent that polarization increased steeply from the 1960's till date. The above correlation test affirms the same as a correlation coefficient of 0.9823119 means that there is a very strong positive linear correlation between 2 variables. This is also supported by the p-value produced in both the tests which is very close to zero. The x variable coefficient produced by the linear model was 6.707e-03, which is greater than the estimate in the previous question.
+
+### 7)
+
+Since politics is a sensitive topic, research about polarization should be reported carefully to avoid backlash. There is also potential for a party to be stigmatized due to the results of the study. Anonymity of the participants could not be maintained as they were congressmen. 
+
+### 8)
+
+A single congressional session should not have a significant impact on data containing more than 40,000 observations over 200+ years. Additionally, since we dealt mainly with averages, the lack of the latest congressional session would not make a huge difference. 
+
+### 9) 
+```{r}
+member_polar = house1876cong %>% filter(year>1950) %>% mutate(dem = abs(dem_mean))
+member_polar = member_polar %>% mutate(reps = abs(reps_mean))
+model2 <- lm(member_polar$dem ~ member_polar$year)
+summary(model2)
+confint(model2)
+model3 <- lm(member_polar$reps ~ member_polar$year)
+summary(model3)
+confint(model3)
+t.test(confint(model2), confint(model3))
+```
+According to the linear regression models, democrats seem to have polarized more quickly than republicans. The 95% confidence interval in the democrat linear model was 0.003501095 - 0.004426105, and it was 0.001588422  0.00210475 for the republican linear model. However, the difference in slopes is not statistically significant, as inferred by the t-test comparing both the confidence intervals. Democrats polarized faster than Republicans did as they x variable coefficient was 0.0039636 which is greater than that of the republican model. Additionally, the p-value in the democratic linear model was lesser than that of the republican model.
+
+
+

@@ -1,0 +1,170 @@
+---
+title: "Final Project"
+author: "Anish Banswada & Benny Mitchell"
+date: "`r Sys.Date()`"
+output: 
+ html_document:
+    toc_float:
+      toc_collapsed: true
+    code_folding: hide
+    theme: united
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library (ggplot2)
+library (dplyr)
+library (GGally)
+library (ggfortify)
+```
+
+## R Markdown
+
+
+## Reading in the Data
+
+For our data analysis, we will be reading in two datasets - one containing the career-average advanced stats and the one containing game-wise stats.
+```{r cars}
+mydata <- read.csv("advanced_stats.csv")
+mydata <- filter(mydata, Player != "Kobe Bryant")
+
+mydata <- filter(mydata, RSorPO != "Playoffs")
+
+mydata2 <- read.csv("allgames_stats.csv")
+mydata2 <- filter(mydata2, Player != "Kobe Bryant")
+
+```
+
+
+
+## Selecting Columns & rows
+
+The columns of relevance for the investigation in the first data set (mydata) are TS., PER, AST., WS, OWS, DWS, VORP & Player.
+
+```{r pressure, echo=FALSE}
+mydata = mydata %>% select("Age","TS.", "PER", "AST.", "WS", "OWS", "DWS", "VORP", "Player")
+mydata2 = mydata2 %>% select("PTS", "STL", "Player", "AST", "FG.")
+```
+
+Separating each player's statistics into different datasets:
+```{r}
+lebron1 <- filter(mydata, Player == "Lebron James")
+lebron2 <- filter(mydata2, Player == "Lebron James")
+jordan1 <- filter(mydata, Player == "Michael Jordan")
+jordan2 <- filter(mydata2, Player == "Michael Jordan")
+
+```
+
+
+## Data Visualizations
+
+### Histogram Representing all time career points of Lebron & Jordan (Lebron wins)
+```{r}
+mydata2 %>% ggplot(aes(x=PTS)) +
+  geom_histogram(stat="count") +
+  xlim(0, 60) +
+  facet_grid(Player ~ .) +
+  labs(title="All-Time career stats", subtitle = "Points", y="Games") +
+  theme_bw() +
+  theme(legend.position="bottom",
+        axis.title.x=element_blank(),
+        legend.title=element_blank())
+```
+
+### Line plot showing the Player Efficiency Rating of Lebron & Jordan over their careers. (About the same)
+```{r}
+ggplot(mydata, aes(x= Age, y = PER, group = Player, color = Player)) +
+  geom_line()+
+  geom_point() + labs(x = "Age", y = "Player Efficiency Rating") 
+```
+
+
+### Stacked Bar Chart comparing the number of steals per game of Jordan & Lebron (Jordan better)
+```{r}
+ggplot(mydata2, aes(x= STL, group = Player, fill = Player)) + 
+  geom_bar() + labs(x = "Steals", y = "Games", title = "Steals Per Game") 
+```
+
+### Density plot showing the population of different assist numbers in lebron & Jordan's careers (Lebron wins)
+```{r}
+ggplot(mydata2, aes(x=AST, fill= Player)) +
+  geom_density() + labs(x = "Assists")
+```
+
+
+
+
+## T Test No: 1
+
+Testing the Assumption of Normality through the QQ Plot: variable distributed normaly if QQ Plot straight.
+ 
+```{r}
+ggplot(mydata2,aes(sample = FG.)) + geom_qq() + geom_qq_line() 
+
+```
+
+Since QQ Plot is straight, the variable is normally distributed.
+
+A 2 sample T Test will be used to compare the field goal percentage of Michael Jordan and Lebron James. 
+
+```{r}
+ggplot(mydata2, aes(FG.,fill = Player)) + geom_histogram() + labs(title = "Field Goal Percentage", y = "Games", x = "Field Goal Percentage")+ facet_grid(~Player)
+t.test(lebron2$FG., jordan2$FG.)
+```
+Since the p-value is less that 0.05, there is a significant difference between the assist percentages of Michael Jordan & Lebron James. As seen in the histogram, Lebron James has higher number of games with a field goal percentage of .5. (SO lebron wins)
+
+## T Test No: 2
+
+A 2 sample T Test will be used to compare the assist percentage of Michael Jordan and Lebron James. 
+
+To test normality in a small sample like this one, the Shapiro-Wilk test is more appropriate than the QQ plot as there might be slight outliers which will affect the straightness of the QQ plot line. If the p value of the Shapiro-Wilk Test is greater than 0.05, the data is normal.
+
+```{r}
+shapiro.test(mydata$AST.)
+```
+Since the p-value is 0.4078, the data is normally distributed.
+
+```{r}
+
+ggplot(mydata, aes(x= Age, y = AST., group = Player, color = Player)) +
+  geom_line()+
+  geom_point() + labs(x = "Age", y = "Assist Percentage") 
+t.test(lebron1$AST., jordan1$AST.)
+
+```
+The p-value is less than 0.05, so there is a significant difference between the assist percentages of Lebron & Jordan. According to the lineplot, it can be seen that Lebron has been maintaining higher assist percentages than Jordan. (Lebron wins)
+
+
+## Linear regression model 1
+
+For our linear regression model, we will be using Defensive Win Shares & Offensive Win Shares to predict Value over Replacement Player. 
+
+### Checking for Multicollinearity 
+
+```{r}
+correlation_data <- mydata %>% select("DWS", "OWS")
+ggpairs(correlation_data)
+```
+
+Since both the variables seem to be highly correlated, we will use one variable instead of two, so OWS will be used.
+
+### Modelling
+```{r}
+mod1 <- lm(VORP ~ OWS, data = mydata)
+summary(mod1)
+ggplot(mydata, aes(x= Age, y = OWS, group = Player, color = Player)) +
+  geom_line()+
+  geom_point() + labs(x = "Age", y = "Offensive Win Shares") 
+```
+Our multiple Linear Regression model has a p-value of 1.587e-13, which means that it is significant. The p-value for Offensive Win Shares is the same as well. 
+
+
+### Model Diagnostics: 
+```{r}
+autoplot(mod1)
+```
+The first assumption that needs to be tested is that the residuals do not depend on the fitted value. This can be observed in p1 of the plot, and it looks like there is little to no correlation between the fitted values and the residual. So, the assumption holds. The residuals should also have the same variance, as seem in p1. The third assumption is that the residuals should follow a normal distribution. According to the qqplot in p2, the residuals of this model follow a normal distribution. Thus, we have validated our model using autoplot.
